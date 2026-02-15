@@ -10,6 +10,7 @@ import "./globals.css"
 const inter = Inter({ subsets: ["latin"] })
 
 export const metadata = {
+    metadataBase: new URL('https://ecocanasta.ecocupon.cl'),
     title: {
         default: "EcoCupon - Comparador de Precios de Supermercados",
         template: "%s | EcoCupon"

@@ -15,6 +15,7 @@ export interface Database {
                     name: string
                     slug: string
                     image: string | null
+                    description: string | null
                     created_at: string
                 }
                 Insert: {
@@ -22,6 +23,7 @@ export interface Database {
                     name: string
                     slug: string
                     image?: string | null
+                    description?: string | null
                     created_at?: string
                 }
                 Update: {
@@ -29,8 +31,10 @@ export interface Database {
                     name?: string
                     slug?: string
                     image?: string | null
+                    description?: string | null
                     created_at?: string
                 }
+                Relationships: []
             }
             products: {
                 Row: {
@@ -38,6 +42,7 @@ export interface Database {
                     name: string
                     price: number
                     image: string | null
+                    description: string | null
                     category_id: number | null
                     shop: string | null
                     created_at: string
@@ -47,6 +52,7 @@ export interface Database {
                     name: string
                     price: number
                     image?: string | null
+                    description?: string | null
                     category_id?: number | null
                     shop?: string | null
                     created_at?: string
@@ -56,10 +62,20 @@ export interface Database {
                     name?: string
                     price?: number
                     image?: string | null
+                    description?: string | null
                     category_id?: number | null
                     shop?: string | null
                     created_at?: string
                 }
+                Relationships: [
+                    {
+                        foreignKeyName: "products_category_id_fkey"
+                        columns: ["category_id"]
+                        isOneToOne: false
+                        referencedRelation: "categories"
+                        referencedColumns: ["id"]
+                    }
+                ]
             }
             profiles: {
                 Row: {
@@ -77,6 +93,7 @@ export interface Database {
                     role?: string | null
                     updated_at?: string | null
                 }
+                Relationships: []
             }
         }
         Views: {

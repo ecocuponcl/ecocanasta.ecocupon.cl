@@ -4,18 +4,19 @@ import { createServerClient } from '../supabase/server';
 
 /**
  * Server action to verify admin access
+ * Uses getUser() for secure server-side JWT validation
  */
 export async function verifyAdminAccess(): Promise<{ success: boolean; message?: string }> {
   try {
     const supabase = await createServerClient();
 
-    // Get the current session
-    const { data: { session }, error } = await supabase.auth.getSession();
+    // Use getUser() — validates JWT against Supabase auth servers
+    const { data: { user }, error } = await supabase.auth.getUser();
 
-    if (error || !session) {
+    if (error || !user) {
       return {
         success: false,
-        message: 'No active session or session error'
+        message: 'No active session or authentication error'
       };
     }
 
@@ -23,7 +24,7 @@ export async function verifyAdminAccess(): Promise<{ success: boolean; message?:
     const { data: profileData, error: profileError } = await supabase
       .from('profiles')
       .select('role')
-      .eq('id', session.user.id)
+      .eq('id', user.id)
       .single();
 
     if (profileError) {
@@ -34,7 +35,7 @@ export async function verifyAdminAccess(): Promise<{ success: boolean; message?:
       };
     }
 
-    if ((profileData as any)?.role !== 'admin') {
+    if (profileData?.role !== 'admin') {
       return {
         success: false,
         message: 'Insufficient permissions'

@@ -10,14 +10,15 @@ export async function proxy(request: NextRequest) {
     return response;
   }
 
-  // Get session
+  // Use getUser() instead of getSession() for secure server-side validation
+  // getSession() reads from cookies which can be tampered with
   const {
-    data: { session },
+    data: { user },
     error,
-  } = await supabase.auth.getSession();
+  } = await supabase.auth.getUser();
 
-  // If no session or error, redirect to home
-  if (error || !session) {
+  // If no user or error, redirect to home
+  if (error || !user) {
     return NextResponse.redirect(new URL('/', request.url));
   }
 
@@ -25,10 +26,10 @@ export async function proxy(request: NextRequest) {
   const { data: profileData, error: profileError } = await supabase
     .from('profiles')
     .select('role')
-    .eq('id', session.user.id)
-    .single();
+    .eq('id', user.id)
+    .single<{ role: string | null }>();
 
-  if (profileError || (profileData as any)?.role !== 'admin') {
+  if (profileError || profileData?.role !== 'admin') {
     // If not admin, redirect to home
     return NextResponse.redirect(new URL('/', request.url));
   }
@@ -37,7 +38,14 @@ export async function proxy(request: NextRequest) {
   return response;
 }
 
-// Specify which paths the middleware should run for
 export const config = {
-  matcher: ['/admin/:path*', '/api/admin/:path*'],
+  matcher: [
+    /*
+     * Match all request paths except for the ones starting with:
+     * - _next/static (static files)
+     * - _next/image (image optimization files)
+     * - favicon.ico (favicon file)
+     */
+    '/((?!_next/static|_next/image|favicon.ico).*)',
+  ],
 };

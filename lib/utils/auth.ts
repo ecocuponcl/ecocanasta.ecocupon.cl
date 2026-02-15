@@ -2,26 +2,23 @@ import { createServerClient } from "../supabase/server";
 
 /**
  * Check if the current user has admin privileges
- * This function verifies if the user is authenticated and has admin role
+ * Uses getUser() for secure server-side token validation
  */
 export async function isAdminUser(): Promise<boolean> {
   try {
     const supabase = await createServerClient();
 
-    // Get the current session
-    const { data: { session }, error } = await supabase.auth.getSession();
+    // Use getUser() — validates JWT against Supabase servers
+    const { data: { user }, error } = await supabase.auth.getUser();
 
-    if (error || !session) {
+    if (error || !user) {
       return false;
     }
 
-    // Check if user has admin role
-    // This assumes you have a way to determine admin status
-    // Either through a user roles table or custom claims
     const { data: profileData, error: profileError } = await supabase
-      .from('profiles') // Assuming you have a profiles table
+      .from('profiles')
       .select('role')
-      .eq('id', session.user.id)
+      .eq('id', user.id)
       .single();
 
     if (profileError) {
@@ -29,7 +26,7 @@ export async function isAdminUser(): Promise<boolean> {
       return false;
     }
 
-    return (profileData as any)?.role === 'admin';
+    return profileData?.role === 'admin';
   } catch (error) {
     console.error('Error checking admin status:', error);
     return false;
@@ -37,18 +34,18 @@ export async function isAdminUser(): Promise<boolean> {
 }
 
 /**
- * Get current user session
+ * Get current authenticated user (server-side validated)
  */
 export async function getCurrentUser() {
   try {
     const supabase = await createServerClient();
-    const { data: { session }, error } = await supabase.auth.getSession();
+    const { data: { user }, error } = await supabase.auth.getUser();
 
-    if (error || !session) {
+    if (error || !user) {
       return null;
     }
 
-    return session.user;
+    return user;
   } catch (error) {
     console.error('Error getting current user:', error);
     return null;
