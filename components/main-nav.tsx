@@ -1,6 +1,6 @@
 import Link from "next/link"
 import { cn } from "@/lib/utils"
-import { createServerClient } from "@/lib/supabase/server"
+import { createClient } from "@/lib/supabase/server"
 
 interface MainNavProps {
     className?: string
@@ -8,7 +8,7 @@ interface MainNavProps {
 
 async function getCategories() {
     try {
-        const supabase = createServerClient()
+        const supabase = await createClient()
         const { data } = await supabase.from("categories").select("name, slug")
         return data || []
     } catch (error) {

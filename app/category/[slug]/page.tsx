@@ -78,8 +78,8 @@ export default async function CategoryPage({ params }: CategoryPageProps) {
           <ArrowLeft className="mr-1.5 h-4 w-4" />
           Volver
         </Link>
-        <h1 className="text-xl font-bold sm:text-3xl">{category.name}</h1>
-        {category.description && <p className="mt-1 text-sm text-muted-foreground">{category.description}</p>}
+        <h1 className="text-xl font-bold sm:text-3xl">{category?.name || 'Categoría no encontrada'}</h1>
+        {category?.description && <p className="mt-1 text-sm text-muted-foreground">{category.description}</p>}
         <p className="mt-2 text-xs text-muted-foreground">
           {products.length} {products.length === 1 ? "producto" : "productos"}
         </p>

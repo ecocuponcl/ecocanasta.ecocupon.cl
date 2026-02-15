@@ -10,7 +10,7 @@ import { createClient } from "@/lib/supabase/server"
 export const revalidate = 0 // Don't cache admin pages
 
 async function getStats() {
-  const supabase = createClient()
+  const supabase = await createClient()
 
   // Get product count
   const { count: productCount } = await supabase.from("products").select("*", { count: "exact", head: true })
