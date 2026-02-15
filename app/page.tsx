@@ -9,7 +9,7 @@ import { formatPrice } from "@/lib/utils"
 export const revalidate = 3600 // Revalidate every hour
 
 async function getCategories() {
-    const supabase = createServerClient()
+    const supabase = await createServerClient()
     const { data, error } = await supabase.from("categories").select("*")
 
     if (error) {
@@ -21,7 +21,7 @@ async function getCategories() {
 }
 
 async function getFeaturedProducts() {
-    const supabase = createServerClient()
+    const supabase = await createServerClient()
     const { data, error } = await supabase
         .from("products")
         .select("*, categories(name)")
