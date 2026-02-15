@@ -1,10 +1,10 @@
-# Vercel deployment configuration
-builds:
-  - src: "src/**/*"
-    use: "@vercel/next"
-
-routes:
-  - src: /api/(.*)
-    dest: /src/pages/api/$1
-  - src: /(.*)  
-    dest: /src/pages/$1
+{
+  "version": 2,
+  "builds": [
+    {
+      "src": "package.json",
+      "use": "@vercel/next",
+      "config": {}
+    }
+  ]
+}

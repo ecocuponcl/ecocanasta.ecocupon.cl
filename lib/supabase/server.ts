@@ -1,21 +1,28 @@
-import { createClient } from "@supabase/supabase-js"
-import type { Database } from "@/lib/database.types"
+import { createServerClient as createSSRClient } from '@supabase/ssr'
+import { cookies } from 'next/headers'
+import type { Database } from '@/lib/database.types'
 
-// No necesitamos un singleton en el servidor ya que cada solicitud
-// crea su propio contexto, pero mantenemos la consistencia en la configuración
-export function createServerClient() {
-    const supabaseUrl = process.env.SUPABASE_URL
-    const supabaseKey = process.env.SUPABASE_ANON_KEY
+export async function createServerClient() {
+    const cookieStore = await cookies()
 
-    if (!supabaseUrl || !supabaseKey) {
-        throw new Error("Missing Supabase environment variables")
-    }
-
-    return createClient<Database>(supabaseUrl, supabaseKey, {
-        auth: {
-            persistSession: false,
-            // Usar un storage key único para evitar conflictos
-            storageKey: "ecocupon-supabase-auth",
-        },
-    })
+    return createSSRClient<Database>(
+        process.env.SUPABASE_URL! || process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.SUPABASE_ANON_KEY! || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+        {
+            cookies: {
+                getAll() {
+                    return cookieStore.getAll()
+                },
+                setAll(cookiesToSet) {
+                    try {
+                        cookiesToSet.forEach(({ name, value, options }) =>
+                            cookieStore.set(name, value, options)
+                        )
+                    } catch {
+                        // The `setAll` method was called from a Server Component.
+                    }
+                },
+            },
+        }
+    )
 }

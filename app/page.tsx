@@ -9,7 +9,7 @@ import { formatPrice } from "@/lib/utils"
 export const revalidate = 3600 // Revalidate every hour
 
 async function getCategories() {
-    const supabase = createServerClient()
+    const supabase = await createServerClient()
     const { data, error } = await supabase.from("categories").select("*")
 
     if (error) {
@@ -21,7 +21,7 @@ async function getCategories() {
 }
 
 async function getFeaturedProducts() {
-    const supabase = createServerClient()
+    const supabase = await createServerClient()
     const { data, error } = await supabase
         .from("products")
         .select("*, categories(name)")
@@ -36,8 +36,10 @@ async function getFeaturedProducts() {
 }
 
 export default async function Home() {
-    const categories = await getCategories()
-    const featuredProducts = await getFeaturedProducts()
+    const [categories, featuredProducts] = await Promise.all([
+        getCategories(),
+        getFeaturedProducts()
+    ])
 
     return (
         <div className="container py-8">
@@ -72,7 +74,7 @@ export default async function Home() {
                     </Button>
                 </div>
                 <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
-                    {categories.map((category: any) => (
+                    {categories.map((category) => (
                         <Link key={category.id} href={`/category/${category.slug}`}>
                             <Card className="transition-colors hover:bg-muted/50">
                                 <CardContent className="flex flex-col items-center p-6 text-center">
@@ -103,7 +105,7 @@ export default async function Home() {
                     </Button>
                 </div>
                 <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
-                    {featuredProducts.map((product: any) => (
+                    {featuredProducts.map((product) => (
                         <Link key={product.id} href={`/product/${product.id}`}>
                             <Card className="h-full overflow-hidden transition-colors hover:bg-muted/50">
                                 <div className="aspect-square relative">
@@ -115,7 +117,9 @@ export default async function Home() {
                                     />
                                 </div>
                                 <CardContent className="p-4">
-                                    <p className="text-sm text-muted-foreground mb-1">{product.categories?.name}</p>
+                                    <p className="text-sm text-muted-foreground mb-1">
+                                        {(product as any).categories?.name}
+                                    </p>
                                     <h3 className="font-bold mb-2 line-clamp-1">{product.name}</h3>
                                     <p className="text-xl font-bold text-primary">{formatPrice(product.price)}</p>
                                 </CardContent>

@@ -8,7 +8,7 @@ interface MainNavProps {
 
 async function getCategories() {
     try {
-        const supabase = createServerClient()
+        const supabase = await createServerClient()
         const { data } = await supabase.from("categories").select("name, slug")
         return data || []
     } catch (error) {
@@ -25,7 +25,7 @@ export async function MainNav({ className }: MainNavProps) {
             title: "Inicio",
             href: "/",
         },
-        ...categories.map((category: any) => ({
+        ...categories.map((category) => ({
             title: category.name,
             href: `/category/${category.slug}`,
         })),
