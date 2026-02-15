@@ -1,65 +1,103 @@
-import { redirect } from 'next/navigation';
-import { verifyAdminAccess } from '@/lib/actions/admin';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import Link from 'next/link';
+import { Button } from "@/components/ui/button"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { ProductsTable } from "@/components/admin/products-table"
+import { CategoriesTable } from "@/components/admin/categories-table"
+import { KnastaUpdates } from "@/components/admin/knasta-updates"
+import { DashboardStats } from "@/components/admin/dashboard-stats"
+import { createServerClient } from "@/lib/supabase/server"
+
+export const revalidate = 0 // Don't cache admin pages
+
+async function getStats() {
+  const supabase = createServerClient()
+
+  // Get product count
+  const { count: productCount } = await supabase.from("products").select("*", { count: "exact", head: true })
+
+  // Get category count
+  const { count: categoryCount } = await supabase.from("categories").select("*", { count: "exact", head: true })
+
+  // Get discount products count
+  const { data: products } = await supabase.from("products").select(`
+      id,
+      price,
+      knasta_prices (
+        price
+      )
+    `)
+
+  const discountProducts =
+    products?.filter((product) => product.knasta_prices.length > 0 && product.knasta_prices[0].price < product.price) ||
+    []
+
+  // Calculate average price
+  const totalPrice = products?.reduce((sum, product) => sum + product.price, 0) || 0
+  const averagePrice = products && products.length > 0 ? Math.round(totalPrice / products.length) : 0
+
+  return {
+    productCount: productCount || 0,
+    categoryCount: categoryCount || 0,
+    discountCount: discountProducts.length,
+    averagePrice,
+  }
+}
 
 export default async function AdminPage() {
-  // Verify admin access
-  const { success, message } = await verifyAdminAccess();
-  
-  if (!success) {
-    // Redirect to home if not admin
-    redirect('/');
-  }
+  const stats = await getStats()
 
   return (
-    <div className="container py-8">
-      <Card>
-        <CardHeader>
-          <CardTitle>Panel de Administración</CardTitle>
-          <CardDescription>Acceso restringido a usuarios administradores</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
-            <h3 className="text-lg font-semibold">Opciones de administración:</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <Link href="/admin/products">
-                <Button variant="outline" className="w-full h-auto py-6">
-                  <div className="text-left">
-                    <h4 className="font-semibold">Gestión de Productos</h4>
-                    <p className="text-sm text-muted-foreground mt-1">Agregar, editar o eliminar productos</p>
-                  </div>
-                </Button>
-              </Link>
-              <Link href="/admin/categories">
-                <Button variant="outline" className="w-full h-auto py-6">
-                  <div className="text-left">
-                    <h4 className="font-semibold">Gestión de Categorías</h4>
-                    <p className="text-sm text-muted-foreground mt-1">Administrar categorías de productos</p>
-                  </div>
-                </Button>
-              </Link>
-              <Link href="/admin/users">
-                <Button variant="outline" className="w-full h-auto py-6">
-                  <div className="text-left">
-                    <h4 className="font-semibold">Gestión de Usuarios</h4>
-                    <p className="text-sm text-muted-foreground mt-1">Ver y administrar usuarios</p>
-                  </div>
-                </Button>
-              </Link>
-              <Link href="/admin/analytics">
-                <Button variant="outline" className="w-full h-auto py-6">
-                  <div className="text-left">
-                    <h4 className="font-semibold">Analytics</h4>
-                    <p className="text-sm text-muted-foreground mt-1">Ver estadísticas y análisis</p>
-                  </div>
-                </Button>
-              </Link>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+    <div className="container mx-auto px-4 py-8">
+      <div className="flex justify-between items-center mb-8">
+        <h1 className="text-3xl font-bold">Panel de Administración</h1>
+        <Button>Añadir Producto</Button>
+      </div>
+
+      <DashboardStats stats={stats} />
+
+      <Tabs defaultValue="products" className="mt-8">
+        <TabsList className="grid w-full grid-cols-3 mb-8">
+          <TabsTrigger value="products">Productos</TabsTrigger>
+          <TabsTrigger value="categories">Categorías</TabsTrigger>
+          <TabsTrigger value="knasta">Actualizaciones Knasta</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="products">
+          <Card>
+            <CardHeader>
+              <CardTitle>Gestión de Productos</CardTitle>
+              <CardDescription>Administra los productos de tu tienda y sus comparaciones con Knasta.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <ProductsTable />
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="categories">
+          <Card>
+            <CardHeader>
+              <CardTitle>Gestión de Categorías</CardTitle>
+              <CardDescription>Administra las categorías de productos de tu tienda.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <CategoriesTable />
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="knasta">
+          <Card>
+            <CardHeader>
+              <CardTitle>Actualizaciones de Knasta</CardTitle>
+              <CardDescription>Actualiza los precios y enlaces de Knasta para tus productos.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <KnastaUpdates />
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
     </div>
-  );
+  )
 }
