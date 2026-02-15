@@ -1,154 +1,134 @@
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
+import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
-import { ArrowLeft, Share2 } from "lucide-react"
+import { ArrowLeft, Share2, ShoppingCart } from "lucide-react"
 import Image from "next/image"
 import Link from "next/link"
 import { notFound } from "next/navigation"
 import { ProductCoupon } from "@/components/product-coupon"
-import { createServerClient } from "@/lib/supabase/server"
+import { createClient } from "@/lib/supabase/server"
 import { formatPrice } from "@/lib/utils"
 
-export const revalidate = 3600 // Revalidate every hour
-
 interface ProductPageProps {
-  params: {
-    id: string
-  }
+  params: Promise<{ id: string }>
 }
 
 async function getProductDetails(id: string) {
-  const supabase = createServerClient()
+  const supabase = await createClient()
 
-  // Get product
-  const { data: product, error: productError } = await supabase.from("products").select("*").eq("id", id).single()
+  const { data: product, error } = await supabase.from("products").select("*").eq("id", id).single()
+  if (error || !product) return null
 
-  if (productError || !product) {
-    return null
-  }
+  const { data: category } = await supabase.from("categories").select("*").eq("id", product.category_id).single()
+  if (!category) return null
 
-  // Get category
-  const { data: category, error: categoryError } = await supabase
-    .from("categories")
-    .select("*")
-    .eq("id", product.category_id)
-    .single()
-
-  if (categoryError) {
-    console.error("Error fetching category:", categoryError)
-    return null
-  }
-
-  // Get product specs
-  const { data: specs, error: specsError } = await supabase.from("product_specs").select("*").eq("product_id", id)
-
-  if (specsError) {
-    console.error("Error fetching product specs:", specsError)
-  }
-
-  // Get comparison price
-  const { data: comparisonPrices, error: comparisonError } = await supabase
-    .from("knasta_prices")
-    .select("*")
-    .eq("product_id", id)
-
-  if (comparisonError) {
-    console.error("Error fetching comparison price:", comparisonError)
-  }
-
-  const comparisonPrice = comparisonPrices && comparisonPrices.length > 0 ? comparisonPrices[0] : null
+  const { data: specs } = await supabase.from("product_specs").select("*").eq("product_id", id)
+  const { data: prices } = await supabase.from("knasta_prices").select("*").eq("product_id", id)
+  const knastaPrice = prices && prices.length > 0 ? prices[0] : null
 
   return {
     ...product,
     categoryName: category.name,
     categorySlug: category.slug,
-    specs: specs || [],
-    comparisonPrice,
+    specs: specs ?? [],
+    knastaPrice,
   }
 }
 
 export default async function ProductPage({ params }: ProductPageProps) {
-  const product = await getProductDetails(params.id)
+  const { id } = await params
+  const product = await getProductDetails(id)
 
-  if (!product) {
-    notFound()
-  }
+  if (!product) notFound()
 
   const discount =
-    product.comparisonPrice && product.comparisonPrice.price < product.price
-      ? Math.round(((product.price - product.comparisonPrice.price) / product.price) * 100)
+    product.knastaPrice && product.knastaPrice.price < product.price
+      ? Math.round(((product.price - product.knastaPrice.price) / product.price) * 100)
       : 0
 
+  const savings = product.knastaPrice ? product.price - product.knastaPrice.price : 0
+
   return (
-    <div className="container mx-auto px-3 sm:px-4 py-4 sm:py-8">
+    <div className="mx-auto max-w-7xl px-4 py-4 sm:py-8">
+      {/* Breadcrumb */}
       <Link
         href={`/category/${product.categorySlug}`}
-        className="flex items-center text-muted-foreground mb-4 sm:mb-6 hover:text-foreground"
+        className="mb-4 inline-flex items-center text-sm text-muted-foreground hover:text-foreground sm:mb-6"
       >
-        <ArrowLeft className="mr-2 h-4 w-4" />
-        <span className="text-sm">Volver a {product.categoryName}</span>
+        <ArrowLeft className="mr-1.5 h-4 w-4" />
+        Volver a {product.categoryName}
       </Link>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-8">
-        <div className="relative aspect-square w-full bg-muted rounded-lg overflow-hidden">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2 lg:gap-10">
+        {/* Image */}
+        <div className="relative aspect-square w-full overflow-hidden rounded-lg bg-muted">
           <Image
-            src={product.image || "/placeholder.svg?height=400&width=400"}
+            src={product.image || "/placeholder.svg?height=500&width=500"}
             alt={product.name}
             fill
-            className="object-contain p-4"
+            className="object-contain p-4 sm:p-8"
             priority
+            sizes="(max-width: 1024px) 100vw, 50vw"
           />
+          {discount > 0 && (
+            <Badge className="absolute left-3 top-3 bg-primary px-3 py-1 text-sm text-primary-foreground sm:text-base">
+              -{discount}%
+            </Badge>
+          )}
         </div>
 
-        <div>
-          <div className="mb-2 text-sm text-gray-500">{product.categoryName}</div>
-          <h1 className="text-xl sm:text-2xl md:text-3xl font-bold mb-3 sm:mb-4">{product.name}</h1>
+        {/* Details */}
+        <div className="flex flex-col">
+          <span className="mb-1 text-xs uppercase tracking-wider text-muted-foreground sm:text-sm">
+            {product.categoryName}
+          </span>
+          <h1 className="mb-3 text-xl font-bold sm:text-2xl lg:text-3xl">{product.name}</h1>
 
-          {product.comparisonPrice ? (
-            <div className="flex flex-col mb-3 sm:mb-4">
-              <span className="text-gray-500 line-through text-base sm:text-lg">${formatPrice(product.price)}</span>
-              <div className="flex items-center">
-                <span className="font-bold text-2xl sm:text-3xl mr-2">
-                  ${formatPrice(product.comparisonPrice.price)}
+          {/* Price */}
+          <div className="mb-4">
+            {product.knastaPrice && discount > 0 ? (
+              <div className="flex flex-col gap-1">
+                <span className="text-sm text-muted-foreground line-through sm:text-base">
+                  ${formatPrice(product.price)}
                 </span>
-                {discount > 0 && (
-                  <span className="bg-green-100 text-green-800 text-sm font-medium px-2 py-1 rounded">
-                    {discount}% OFF
+                <div className="flex items-center gap-3">
+                  <span className="text-2xl font-bold sm:text-3xl">
+                    ${formatPrice(product.knastaPrice.price)}
                   </span>
-                )}
-              </div>
-            </div>
-          ) : (
-            <p className="text-xl sm:text-2xl font-bold mb-3 sm:mb-4">${formatPrice(product.price)}</p>
-          )}
-
-          <p className="text-muted-foreground text-sm sm:text-base mb-4 sm:mb-6">{product.description}</p>
-
-          {product.comparisonPrice && (
-            <Card className="mb-4 sm:mb-6">
-              <CardContent className="p-4 sm:p-6">
-                <div className="flex justify-between items-center mb-3 sm:mb-4">
-                  <h3 className="text-base sm:text-lg font-semibold">Comparación de precios</h3>
+                  <Badge variant="secondary" className="bg-primary/10 text-primary">
+                    Ahorras ${formatPrice(savings)}
+                  </Badge>
                 </div>
+              </div>
+            ) : (
+              <span className="text-2xl font-bold sm:text-3xl">${formatPrice(product.price)}</span>
+            )}
+          </div>
 
-                <div className="space-y-3 sm:space-y-4">
+          <p className="mb-6 text-sm leading-relaxed text-muted-foreground sm:text-base">
+            {product.description}
+          </p>
+
+          {/* Price comparison */}
+          {product.knastaPrice && discount > 0 && (
+            <Card className="mb-4">
+              <CardContent className="p-4">
+                <h3 className="mb-3 text-sm font-semibold sm:text-base">Comparacion de precios</h3>
+                <div className="space-y-2 text-sm">
                   <div className="flex justify-between">
-                    <span>Precio regular:</span>
-                    <span className="font-semibold">${formatPrice(product.price)}</span>
+                    <span className="text-muted-foreground">Precio regular</span>
+                    <span className="font-medium">${formatPrice(product.price)}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span>Precio con descuento:</span>
-                    <span className="font-semibold">${formatPrice(product.comparisonPrice.price)}</span>
+                    <span className="text-muted-foreground">Precio EcoCupon</span>
+                    <span className="font-medium">${formatPrice(product.knastaPrice.price)}</span>
                   </div>
                   <Separator />
                   <div className="flex justify-between">
-                    <span>Ahorro:</span>
-                    <span
-                      className={`font-semibold ${product.comparisonPrice.price < product.price ? "text-green-600" : "text-red-600"}`}
-                    >
-                      {product.comparisonPrice.price < product.price
-                        ? `-${formatPrice(product.price - product.comparisonPrice.price)} (-${discount}%)`
-                        : `+${formatPrice(product.comparisonPrice.price - product.price)} (+${Math.round(((product.comparisonPrice.price - product.price) / product.price) * 100)}%)`}
+                    <span className="font-medium">Tu ahorro</span>
+                    <span className="font-bold text-primary">
+                      -${formatPrice(savings)} ({discount}%)
                     </span>
                   </div>
                 </div>
@@ -156,23 +136,38 @@ export default async function ProductPage({ params }: ProductPageProps) {
             </Card>
           )}
 
+          {/* Coupon */}
           {discount > 0 && <ProductCoupon product={product} discount={discount} />}
 
-          <div className="flex gap-3 sm:gap-4 mt-4 sm:mt-6">
-            <Button className="w-full text-sm sm:text-base py-2 sm:py-3">Comprar</Button>
-            <Button variant="outline" size="icon" className="aspect-square h-auto">
-              <Share2 className="h-4 w-4 sm:h-5 sm:w-5" />
+          {/* Action buttons */}
+          <div className="mt-4 flex gap-3">
+            {product.knastaPrice?.url ? (
+              <Button asChild className="flex-1 gap-2">
+                <a href={product.knastaPrice.url} target="_blank" rel="noopener noreferrer">
+                  <ShoppingCart className="h-4 w-4" />
+                  Comprar
+                </a>
+              </Button>
+            ) : (
+              <Button className="flex-1 gap-2">
+                <ShoppingCart className="h-4 w-4" />
+                Comprar
+              </Button>
+            )}
+            <Button variant="outline" size="icon">
+              <Share2 className="h-4 w-4" />
               <span className="sr-only">Compartir</span>
             </Button>
           </div>
 
+          {/* Specs */}
           {product.specs.length > 0 && (
             <div className="mt-6 sm:mt-8">
-              <h3 className="text-base sm:text-lg font-semibold mb-3 sm:mb-4">Especificaciones</h3>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-4">
-                {product.specs.map((spec) => (
-                  <div key={spec.id} className="flex justify-between text-sm">
-                    <span className="text-muted-foreground">{spec.name}:</span>
+              <h3 className="mb-3 text-sm font-semibold sm:text-base">Especificaciones</h3>
+              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                {product.specs.map((spec: any) => (
+                  <div key={spec.id} className="flex justify-between rounded-md bg-muted/50 px-3 py-2 text-sm">
+                    <span className="text-muted-foreground">{spec.name}</span>
                     <span className="font-medium">{spec.value}</span>
                   </div>
                 ))}

@@ -3,27 +3,16 @@ import { ShoppingBag } from "lucide-react"
 
 export function SiteFooter() {
   return (
-    <footer className="border-t bg-background">
-      <div className="container flex flex-col items-center justify-between gap-3 sm:gap-4 py-8 sm:py-10 md:h-24 md:flex-row md:py-0">
-        <div className="flex flex-col items-center gap-4 px-8 md:flex-row md:gap-2 md:px-0">
-          <Link href="/" className="flex items-center space-x-2">
-            <ShoppingBag className="h-5 w-5 text-green-600" />
-            <span className="inline-block font-bold">EcoCupon</span>
+    <footer className="border-t bg-muted/40">
+      <div className="mx-auto max-w-7xl px-4 py-6 sm:py-8">
+        <div className="flex flex-col items-center gap-3 sm:flex-row sm:justify-between">
+          <Link href="/" className="flex items-center gap-2">
+            <ShoppingBag className="h-4 w-4 text-primary" />
+            <span className="font-bold">EcoCupon</span>
           </Link>
-          <p className="text-center text-xs sm:text-sm leading-loose text-muted-foreground md:text-left">
-            &copy; {new Date().getFullYear()} EcoCupon. Todos los derechos reservados.
+          <p className="text-center text-xs text-muted-foreground">
+            Comparador de precios y cupones de descuento. Los precios pueden variar.
           </p>
-        </div>
-        <div className="flex gap-4">
-          <Link href="/terms" className="text-sm text-muted-foreground hover:underline">
-            Términos
-          </Link>
-          <Link href="/privacy" className="text-sm text-muted-foreground hover:underline">
-            Privacidad
-          </Link>
-          <Link href="/contact" className="text-sm text-muted-foreground hover:underline">
-            Contacto
-          </Link>
         </div>
       </div>
     </footer>
