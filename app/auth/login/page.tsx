@@ -10,6 +10,7 @@ import { ShoppingBag, Chrome } from "lucide-react"
 import Link from "next/link"
 import { useRouter, useSearchParams } from "next/navigation"
 import { useState, Suspense } from "react"
+import { isValidEmail, truncateString } from "@/lib/validators"
 
 function LoginForm() {
   const [email, setEmail] = useState("")
@@ -25,11 +26,32 @@ function LoginForm() {
     setLoading(true)
     setError(null)
 
+    // Validar email antes de enviar
+    if (!isValidEmail(email)) {
+      setError("Por favor ingresa un email válido")
+      setLoading(false)
+      return
+    }
+
+    // Validar longitud de password
+    if (password.length < 6) {
+      setError("La contraseña debe tener al menos 6 caracteres")
+      setLoading(false)
+      return
+    }
+
+    // Sanitizar inputs
+    const sanitizedEmail = truncateString(email.trim().toLowerCase(), 255)
+
     const supabase = createClient()
-    const { error } = await supabase.auth.signInWithPassword({ email, password })
+    const { error } = await supabase.auth.signInWithPassword({ 
+      email: sanitizedEmail, 
+      password 
+    })
 
     if (error) {
-      setError(error.message)
+      // No revelar si el email existe o no
+      setError("Credenciales inválidas. Por favor verifica tu email y contraseña.")
       setLoading(false)
       return
     }
@@ -47,11 +69,15 @@ function LoginForm() {
       provider: "google",
       options: {
         redirectTo: `${window.location.origin}/auth/callback`,
+        queryParams: {
+          access_type: "offline",
+          prompt: "consent",
+        },
       },
     })
 
     if (error) {
-      setError(error.message)
+      setError("Error al iniciar sesión con Google. Inténtalo de nuevo.")
       setLoading(false)
     }
   }
@@ -68,7 +94,11 @@ function LoginForm() {
         </CardHeader>
         <CardContent className="space-y-4">
           {(error || errorParam) && (
-            <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">
+            <div 
+              role="alert" 
+              aria-live="assertive" 
+              className="rounded-md bg-destructive/10 p-3 text-sm text-destructive"
+            >
               {error || errorParam}
             </div>
           )}
@@ -92,7 +122,7 @@ function LoginForm() {
             </div>
           </div>
 
-          <form onSubmit={handleEmailLogin} className="space-y-3">
+          <form onSubmit={handleEmailLogin} className="space-y-3" noValidate>
             <div className="space-y-1.5">
               <Label htmlFor="email">Email</Label>
               <Input
@@ -102,6 +132,8 @@ function LoginForm() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
+                autoComplete="email"
+                maxLength={255}
               />
             </div>
             <div className="space-y-1.5">
@@ -113,6 +145,8 @@ function LoginForm() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
+                autoComplete="current-password"
+                minLength={6}
               />
             </div>
             <Button type="submit" className="w-full" disabled={loading}>

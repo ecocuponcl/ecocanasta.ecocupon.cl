@@ -8,10 +8,15 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { Edit, MoreHorizontal, Trash } from "lucide-react"
 import { createClient } from "@/lib/supabase/client"
 import { useToast } from "@/hooks/use-toast"
+import type { Database } from "@/lib/database.types"
+
+type CategoryWithCount = Database["public"]["Tables"]["categories"]["Row"] & {
+  productCount: number
+}
 
 export function CategoriesTable() {
   const [searchTerm, setSearchTerm] = useState("")
-  const [categories, setCategories] = useState<any[]>([])
+  const [categories, setCategories] = useState<CategoryWithCount[]>([])
   const [loading, setLoading] = useState(true)
   const { toast } = useToast()
   const supabase = createClient()
@@ -47,7 +52,7 @@ export function CategoriesTable() {
         }),
       )
 
-      setCategories(categoriesWithCounts)
+      setCategories(categoriesWithCounts as CategoryWithCount[])
     }
     setLoading(false)
   }
@@ -58,7 +63,7 @@ export function CategoriesTable() {
       (category.description && category.description.toLowerCase().includes(searchTerm.toLowerCase())),
   )
 
-  const deleteCategory = async (id: string) => {
+  const deleteCategory = async (id: number) => {
     const { error } = await supabase.from("categories").delete().eq("id", id)
 
     if (error) {

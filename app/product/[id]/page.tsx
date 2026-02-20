@@ -9,6 +9,19 @@ import { notFound } from "next/navigation"
 import { ProductCoupon } from "@/components/product-coupon"
 import { createClient } from "@/lib/supabase/server"
 import { formatPrice } from "@/lib/utils"
+import type { Database } from "@/lib/database.types"
+
+type Category = Database["public"]["Tables"]["categories"]["Row"]
+type Product = Database["public"]["Tables"]["products"]["Row"]
+type KnastaPrice = Database["public"]["Tables"]["knasta_prices"]["Row"]
+type ProductSpec = Database["public"]["Tables"]["product_specs"]["Row"]
+
+type ProductDetails = Product & {
+  categoryName: string
+  categorySlug: string
+  specs: ProductSpec[]
+  knastaPrice: KnastaPrice | null
+}
 
 interface ProductPageProps {
   params: Promise<{ id: string }>
@@ -25,15 +38,15 @@ async function getProductDetails(id: string) {
 
   const { data: specs } = await supabase.from("product_specs").select("*").eq("product_id", id)
   const { data: prices } = await supabase.from("knasta_prices").select("*").eq("product_id", id)
-  const knastaPrice = prices && prices.length > 0 ? prices[0] : null
+  const knastaPrice = prices && prices.length > 0 ? (prices[0] as KnastaPrice) : null
 
   return {
-    ...product,
-    categoryName: category.name,
-    categorySlug: category.slug,
-    specs: specs ?? [],
+    ...(product as Product),
+    categoryName: (category as Category).name,
+    categorySlug: (category as Category).slug,
+    specs: (specs as ProductSpec[]) ?? [],
     knastaPrice,
-  }
+  } as ProductDetails
 }
 
 export default async function ProductPage({ params }: ProductPageProps) {

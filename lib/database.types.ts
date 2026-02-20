@@ -38,7 +38,7 @@ export interface Database {
             }
             products: {
                 Row: {
-                    id: number
+                    id: string
                     name: string
                     price: number
                     image: string | null
@@ -48,7 +48,7 @@ export interface Database {
                     created_at: string
                 }
                 Insert: {
-                    id?: number
+                    id?: string
                     name: string
                     price: number
                     image?: string | null
@@ -58,7 +58,7 @@ export interface Database {
                     created_at?: string
                 }
                 Update: {
-                    id?: number
+                    id?: string
                     name?: string
                     price?: number
                     image?: string | null
@@ -73,6 +73,67 @@ export interface Database {
                         columns: ["category_id"]
                         isOneToOne: false
                         referencedRelation: "categories"
+                        referencedColumns: ["id"]
+                    }
+                ]
+            }
+            knasta_prices: {
+                Row: {
+                    id: number
+                    product_id: string
+                    price: number
+                    url: string | null
+                    last_updated: string
+                }
+                Insert: {
+                    id?: number
+                    product_id: string
+                    price: number
+                    url?: string | null
+                    last_updated?: string
+                }
+                Update: {
+                    id?: number
+                    product_id?: string
+                    price?: number
+                    url?: string | null
+                    last_updated?: string
+                }
+                Relationships: [
+                    {
+                        foreignKeyName: "knasta_prices_product_id_fkey"
+                        columns: ["product_id"]
+                        isOneToOne: false
+                        referencedRelation: "products"
+                        referencedColumns: ["id"]
+                    }
+                ]
+            }
+            product_specs: {
+                Row: {
+                    id: number
+                    product_id: string
+                    name: string
+                    value: string
+                }
+                Insert: {
+                    id?: number
+                    product_id: string
+                    name: string
+                    value: string
+                }
+                Update: {
+                    id?: number
+                    product_id?: string
+                    name?: string
+                    value?: string
+                }
+                Relationships: [
+                    {
+                        foreignKeyName: "product_specs_product_id_fkey"
+                        columns: ["product_id"]
+                        isOneToOne: false
+                        referencedRelation: "products"
                         referencedColumns: ["id"]
                     }
                 ]
@@ -93,7 +154,15 @@ export interface Database {
                     role?: string | null
                     updated_at?: string | null
                 }
-                Relationships: []
+                Relationships: [
+                    {
+                        foreignKeyName: "profiles_id_fkey"
+                        columns: ["id"]
+                        isOneToOne: true
+                        referencedRelation: "users"
+                        referencedColumns: ["id"]
+                    }
+                ]
             }
         }
         Views: {

@@ -7,6 +7,17 @@ import Link from "next/link"
 import { notFound } from "next/navigation"
 import { createClient } from "@/lib/supabase/server"
 import { formatPrice } from "@/lib/utils"
+import type { Database } from "@/lib/database.types"
+
+type Category = Database["public"]["Tables"]["categories"]["Row"]
+type Product = Database["public"]["Tables"]["products"]["Row"]
+type KnastaPrice = Database["public"]["Tables"]["knasta_prices"]["Row"]
+
+type EnrichedProduct = Product & {
+  knastaPrice: KnastaPrice | null
+  categoryName: string
+  categorySlug: string
+}
 
 interface CategoryPageProps {
   params: Promise<{ slug: string }>
@@ -15,8 +26,8 @@ interface CategoryPageProps {
 async function getCategoryWithProducts(slug: string) {
   const supabase = await createClient()
 
-  let category: { id: string; name: string; slug: string; description: string | null } | null = null
-  let products: any[] = []
+  let category: Category | { id: string; name: string; slug: string; description: string | null } | null = null
+  let products: Product[] = []
 
   if (slug === "all") {
     category = { id: "all", name: "Todas las ofertas", slug: "all", description: "Todas las ofertas disponibles" }
@@ -25,11 +36,11 @@ async function getCategoryWithProducts(slug: string) {
       console.error("Error fetching products:", error)
       return { category, products: [] }
     }
-    products = data ?? []
+    products = (data as Product[]) ?? []
   } else {
     const { data: cat, error: catErr } = await supabase.from("categories").select("*").eq("slug", slug).single()
     if (catErr || !cat) return null
-    category = cat
+    category = cat as Category
 
     const { data, error } = await supabase
       .from("products")
@@ -41,25 +52,25 @@ async function getCategoryWithProducts(slug: string) {
       console.error("Error fetching products:", error)
       return { category, products: [] }
     }
-    products = data ?? []
+    products = (data as Product[]) ?? []
   }
 
   const enriched = await Promise.all(
     products.map(async (p) => {
       const { data: cat } = await supabase.from("categories").select("name, slug").eq("id", p.category_id).single()
       const { data: prices } = await supabase.from("knasta_prices").select("*").eq("product_id", p.id)
-      const knastaPrice = prices && prices.length > 0 ? prices[0] : null
+      const knastaPrice = prices && prices.length > 0 ? (prices[0] as KnastaPrice) : null
 
       return {
         ...p,
         knastaPrice,
-        categoryName: cat?.name || "General",
-        categorySlug: cat?.slug || "all",
+        categoryName: (cat as Category)?.name || "General",
+        categorySlug: (cat as Category)?.slug || "all",
       }
-    })
+    }),
   )
 
-  return { category, products: enriched }
+  return { category, products: enriched as EnrichedProduct[] }
 }
 
 export default async function CategoryPage({ params }: CategoryPageProps) {

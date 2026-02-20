@@ -1,10 +1,10 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   typescript: {
-    ignoreBuildErrors: true,
+    // Errors are handled in the IDE. Don't ignore build errors.
   },
   images: {
-    unoptimized: false, // Habilitar optimización de imágenes
+    unoptimized: false,
     remotePatterns: [
       {
         protocol: 'https',
@@ -24,15 +24,15 @@ const nextConfig = {
       },
       {
         protocol: 'https',
-        hostname: '**.ecocupon.cl', // Dominio del sitio
+        hostname: '**.ecocupon.cl',
       },
       {
         protocol: 'https',
-        hostname: 'lh3.googleusercontent.com', // Para imágenes de Google
+        hostname: 'lh3.googleusercontent.com',
       },
       {
         protocol: 'https',
-        hostname: 'avatars.githubusercontent.com', // Para avatares
+        hostname: 'avatars.githubusercontent.com',
       },
     ],
   },
@@ -41,6 +41,7 @@ const nextConfig = {
       {
         source: '/(.*)',
         headers: [
+          // Security headers
           {
             key: 'X-DNS-Prefetch-Control',
             value: 'on',
@@ -64,6 +65,34 @@ const nextConfig = {
           {
             key: 'Referrer-Policy',
             value: 'origin-when-cross-origin',
+          },
+          // Content Security Policy (CSP)
+          {
+            key: 'Content-Security-Policy',
+            value: [
+              "default-src 'self'",
+              "script-src 'self' 'unsafe-eval' 'unsafe-inline' vercel.live",
+              "style-src 'self' 'unsafe-inline'",
+              "img-src 'self' blob: data: https://images.unsplash.com https://placehold.co https://cdn.jsdelivr.net https://raw.githubusercontent.com https://lh3.googleusercontent.com https://avatars.githubusercontent.com https://**.ecocupon.cl",
+              "font-src 'self' data:",
+              "connect-src 'self' https://**.supabase.co https://**.supabase.realtime wss://**.supabase.realtime https://wa.me https://vercel.live https://analytics.vercel.com",
+              "frame-src 'none'",
+              "object-src 'none'",
+              "base-uri 'self'",
+              "form-action 'self'",
+              "frame-ancestors 'self'",
+              "upgrade-insecure-requests",
+            ].join('; '),
+          },
+          // Permissions Policy
+          {
+            key: 'Permissions-Policy',
+            value: [
+              'camera=()',
+              'microphone=()',
+              'geolocation=(self)',
+              'interest-cohort=()',
+            ].join(', '),
           },
         ],
       },

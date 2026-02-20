@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input"
 import { Check, Copy, MessageCircle } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { formatPrice } from "@/lib/utils"
+import { validatePhoneNumber, truncateString } from "@/lib/validators"
 
 interface ProductCouponProps {
   product: {
@@ -23,6 +24,8 @@ export function ProductCoupon({ product, discount }: ProductCouponProps) {
   const [copied, setCopied] = useState(false)
   const [phone, setPhone] = useState("")
 
+  // Sanitizar datos del producto
+  const safeProductName = truncateString(product.name, 100)
   const couponCode = `ECO${discount}OFF${product.id.toUpperCase().slice(0, 6)}`
   const savings = product.knastaPrice ? product.price - product.knastaPrice.price : 0
 
@@ -34,14 +37,26 @@ export function ProductCoupon({ product, discount }: ProductCouponProps) {
   }
 
   function sendWhatsApp() {
-    const cleanPhone = phone.replace(/\D/g, "")
+    const cleanPhone = validatePhoneNumber(phone)
+    
     if (!cleanPhone) {
-      toast({ title: "Error", description: "Ingresa un numero de WhatsApp.", variant: "destructive" })
+      toast({ 
+        title: "Número inválido", 
+        description: "Ingresa un número de WhatsApp válido (8-15 dígitos).", 
+        variant: "destructive" 
+      })
       return
     }
 
-    const message = `Hola! Te comparto este cupon de EcoCupon: ${couponCode}\n\nProducto: ${product.name}\nAhorro: $${formatPrice(savings)} (${discount}% OFF)\n\nVer oferta en EcoCupon`
-    window.open(`https://wa.me/${cleanPhone}?text=${encodeURIComponent(message)}`, "_blank")
+    // Sanitizar y limitar el mensaje
+    const message = truncateString(
+      `Hola! Te comparto este cupon de EcoCupon: ${couponCode}\n\nProducto: ${safeProductName}\nAhorro: $${formatPrice(savings)} (${discount}% OFF)\n\nVer oferta en EcoCupon`,
+      1000
+    )
+    
+    // Abrir WhatsApp con validación de URL
+    const whatsappUrl = `https://wa.me/${cleanPhone}?text=${encodeURIComponent(message)}`
+    window.open(whatsappUrl, "_blank", "noopener,noreferrer")
   }
 
   return (
@@ -68,6 +83,7 @@ export function ProductCoupon({ product, discount }: ProductCouponProps) {
             value={phone}
             onChange={(e) => setPhone(e.target.value)}
             className="h-9 text-sm"
+            maxLength={20}
           />
           <Button onClick={sendWhatsApp} size="sm" className="shrink-0 gap-1.5">
             <MessageCircle className="h-4 w-4" />

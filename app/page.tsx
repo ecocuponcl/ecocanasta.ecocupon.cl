@@ -6,15 +6,26 @@ import Image from "next/image"
 import Link from "next/link"
 import { createClient } from "@/lib/supabase/server"
 import { formatPrice } from "@/lib/utils"
+import { logError } from "@/lib/logger"
+import type { Database } from "@/lib/database.types"
+
+type Category = Database["public"]["Tables"]["categories"]["Row"]
+type Product = Database["public"]["Tables"]["products"]["Row"]
+type KnastaPrice = Database["public"]["Tables"]["knasta_prices"]["Row"]
+
+type EnrichedProduct = Product & {
+  knastaPrice: KnastaPrice | null
+  category: { name: string; slug: string }
+}
 
 async function getCategories() {
   const supabase = await createClient()
   const { data, error } = await supabase.from("categories").select("*")
   if (error) {
-    console.error("Error fetching categories:", error)
+    logError("HomePage:getCategories", "Error fetching categories", error)
     return []
   }
-  return data ?? []
+  return (data as Category[]) ?? []
 }
 
 async function getDiscountedProducts() {
@@ -26,12 +37,12 @@ async function getDiscountedProducts() {
     .order("created_at", { ascending: false })
 
   if (error || !products) {
-    console.error("Error fetching products:", error)
+    logError("HomePage:getDiscountedProducts", "Error fetching products", error)
     return []
   }
 
   const enriched = await Promise.all(
-    products.map(async (p) => {
+    (products as Product[]).map(async (p) => {
       const { data: cat } = await supabase
         .from("categories")
         .select("name, slug")
@@ -43,17 +54,17 @@ async function getDiscountedProducts() {
         .select("*")
         .eq("product_id", p.id)
 
-      const knastaPrice = prices && prices.length > 0 ? prices[0] : null
+      const knastaPrice = prices && prices.length > 0 ? (prices[0] as KnastaPrice) : null
 
       return {
         ...p,
         knastaPrice,
-        category: cat || { name: "General", slug: "all" },
+        category: (cat as { name: string; slug: string }) || { name: "General", slug: "all" },
       }
-    })
+    }),
   )
 
-  return enriched.filter((p) => p.knastaPrice && p.knastaPrice.price < p.price)
+  return enriched.filter((p): p is EnrichedProduct => p.knastaPrice !== null && p.knastaPrice.price < p.price)
 }
 
 const categoryIcons = [

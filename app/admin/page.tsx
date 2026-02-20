@@ -6,8 +6,34 @@ import { CategoriesTable } from "@/components/admin/categories-table"
 import { KnastaUpdates } from "@/components/admin/knasta-updates"
 import { DashboardStats } from "@/components/admin/dashboard-stats"
 import { createClient } from "@/lib/supabase/server"
+import { redirect } from "next/navigation"
+import { logError } from "@/lib/logger"
+import type { Database } from "@/lib/database.types"
 
 export const revalidate = 0 // Don't cache admin pages
+
+async function verifyAdminAccess() {
+  const supabase = await createClient()
+  
+  const { data: { user } } = await supabase.auth.getUser()
+  
+  if (!user) {
+    redirect("/auth/login?error=Debes iniciar sesión para acceder al panel de administración")
+  }
+  
+  // Verificar si el usuario tiene rol de administrador
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("role")
+    .eq("id", user.id)
+    .single()
+  
+  if (profile?.role !== "admin") {
+    redirect("/auth/login?error=No tienes permisos de administrador")
+  }
+  
+  return user
+}
 
 async function getStats() {
   const supabase = await createClient()
@@ -19,7 +45,13 @@ async function getStats() {
   const { count: categoryCount } = await supabase.from("categories").select("*", { count: "exact", head: true })
 
   // Get discount products count
-  const { data: products } = await supabase.from("products").select(`
+  type ProductWithKnasta = {
+    id: string
+    price: number
+    knasta_prices: { price: number }[]
+  }
+
+  const { data: products, error } = await supabase.from("products").select(`
       id,
       price,
       knasta_prices (
@@ -27,12 +59,17 @@ async function getStats() {
       )
     `)
 
+  if (error) {
+    logError("AdminPage:getStats", "Error fetching products for stats", error)
+  }
+
   const discountProducts =
-    products?.filter((product) => product.knasta_prices.length > 0 && product.knasta_prices[0].price < product.price) ||
-    []
+    (products as ProductWithKnasta[])?.filter(
+      (product) => product.knasta_prices.length > 0 && product.knasta_prices[0].price < product.price,
+    ) || []
 
   // Calculate average price
-  const totalPrice = products?.reduce((sum, product) => sum + product.price, 0) || 0
+  const totalPrice = (products as ProductWithKnasta[])?.reduce((sum, product) => sum + product.price, 0) || 0
   const averagePrice = products && products.length > 0 ? Math.round(totalPrice / products.length) : 0
 
   return {
@@ -44,6 +81,7 @@ async function getStats() {
 }
 
 export default async function AdminPage() {
+  await verifyAdminAccess()
   const stats = await getStats()
 
   return (

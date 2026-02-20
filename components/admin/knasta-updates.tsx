@@ -8,11 +8,21 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Check, RefreshCw, Search } from "lucide-react"
 import { createClient } from "@/lib/supabase/client"
 import { useToast } from "@/hooks/use-toast"
+import type { Database } from "@/lib/database.types"
+
+type ProductWithPrices = Database["public"]["Tables"]["products"]["Row"] & {
+  knasta_prices: {
+    id: number
+    price: number
+    url: string | null
+    last_updated: string
+  }[]
+}
 
 export function KnastaUpdates() {
   const [updating, setUpdating] = useState(false)
   const [searchTerm, setSearchTerm] = useState("")
-  const [products, setProducts] = useState<any[]>([])
+  const [products, setProducts] = useState<ProductWithPrices[]>([])
   const [loading, setLoading] = useState(true)
   const [updatedProducts, setUpdatedProducts] = useState<string[]>([])
   const { toast } = useToast()
@@ -42,7 +52,7 @@ export function KnastaUpdates() {
         variant: "destructive",
       })
     } else {
-      setProducts(data || [])
+      setProducts((data as ProductWithPrices[]) || [])
     }
     setLoading(false)
   }
@@ -102,13 +112,15 @@ export function KnastaUpdates() {
     const priceChange = Math.random() * 0.2 - 0.1 // Entre -10% y +10%
     const newPrice = Math.round(currentPrice * (1 + priceChange))
 
+    // Generar URL segura
+    const baseUrl = product.knasta_prices.length > 0 && product.knasta_prices[0].url
+      ? product.knasta_prices[0].url
+      : `https://knasta.cl/producto/${productId}`
+
     const update = {
       product_id: productId,
       price: newPrice,
-      url:
-        product.knasta_prices.length > 0 && product.knasta_prices[0].url
-          ? product.knasta_prices[0].url
-          : `https://knasta.cl/producto/${productId}`,
+      url: baseUrl,
       last_updated: new Date().toISOString(),
     }
 

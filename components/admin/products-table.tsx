@@ -9,11 +9,17 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { Edit, MoreHorizontal, Trash } from "lucide-react"
 import { createClient } from "@/lib/supabase/client"
 import { useToast } from "@/hooks/use-toast"
+import type { Database } from "@/lib/database.types"
+
+type ProductWithRelations = Database["public"]["Tables"]["products"]["Row"] & {
+  categories: { name: string } | null
+  knasta_prices: { price: number }[]
+}
 
 export function ProductsTable() {
   const [searchTerm, setSearchTerm] = useState("")
   const [selectedProducts, setSelectedProducts] = useState<string[]>([])
-  const [products, setProducts] = useState<any[]>([])
+  const [products, setProducts] = useState<ProductWithRelations[]>([])
   const [loading, setLoading] = useState(true)
   const { toast } = useToast()
   const supabase = createClient()
@@ -42,7 +48,7 @@ export function ProductsTable() {
         variant: "destructive",
       })
     } else {
-      setProducts(data || [])
+      setProducts((data as ProductWithRelations[]) || [])
     }
     setLoading(false)
   }
